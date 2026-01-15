@@ -179,6 +179,17 @@ class NullDebugVisualizer:
 
   def add_ghost_mesh(self, qpos, model, alpha=0.5, label=None) -> None:
     pass
+  
+  def add_rectangle(
+    self,
+    center,
+    width,
+    height,
+    normal,
+    color,
+    label=None,
+  ) -> None:
+    pass
 
   def add_frame(
     self,
