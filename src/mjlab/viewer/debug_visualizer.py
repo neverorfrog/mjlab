@@ -264,6 +264,17 @@ class NullDebugVisualizer:
   ) -> None:
     del mocap_pos, mocap_quat
     pass
+  
+  def add_rectangle(
+    self,
+    center,
+    width,
+    height,
+    normal,
+    color,
+    label=None,
+  ) -> None:
+    pass
 
   def add_frame(
     self,
