@@ -89,8 +89,6 @@ class DebugVisualizer(ABC):
       label: Optional label for this rectangle.
     """
     ...
-  )
-  
   
   
   @abstractmethod
