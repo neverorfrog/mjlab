@@ -112,6 +112,103 @@ class MujocoNativeDebugVisualizer(DebugVisualizer):
       mujoco.mjtCatBit.mjCAT_DYNAMIC.value,
       self.scn,
     )
+    
+  
+    def add_rectangle(
+        self,
+        center: np.ndarray | torch.Tensor,
+        width: float,
+        height: float,
+        normal: np.ndarray | torch.Tensor | None = None,
+        color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 0.5),
+        edge_radius: float = 0.005,
+        label: str | None = None,
+    ) -> None:
+        """Add a flat rectangle visualization with filled area and edge borders.
+
+        Args:
+            center: Center position of the rectangle (3D vector).
+            width: Width of the rectangle (along local X axis).
+            height: Height of the rectangle (along local Y axis).
+            normal: Normal vector defining rectangle orientation (default: Z-up).
+                The rectangle lies in the plane perpendicular to this normal.
+            color: RGBA color for the rectangle fill and edges (values 0-1).
+            edge_radius: Radius/thickness of the edge cylinders.
+            label: Optional label for this rectangle.
+        """
+        del label  # Unused.
+        
+        # Convert inputs to numpy arrays
+        if isinstance(center, torch.Tensor):
+            center = center.cpu().numpy()
+        center = np.asarray(center, dtype=np.float32).flatten()
+
+        if normal is None:
+            # Default: rectangle in XY plane
+            normal = np.array([0.0, 0.0, 1.0])
+        elif isinstance(normal, torch.Tensor):
+            normal = normal.cpu().numpy()
+        normal = np.asarray(normal, dtype=np.float32).flatten()
+        normal = normal / np.linalg.norm(normal)
+
+        # Create local coordinate frame for the rectangle
+        # Choose an arbitrary perpendicular vector
+        if abs(normal[2]) < 0.9:
+            up = np.array([0.0, 0.0, 1.0])
+        else:
+            up = np.array([1.0, 0.0, 0.0])
+        
+        local_x = np.cross(up, normal)
+        local_x = local_x / np.linalg.norm(local_x)
+        local_y = np.cross(normal, local_x)
+        local_y = local_y / np.linalg.norm(local_y)
+
+        # Build rotation matrix from local frame
+        # Columns are the local axes
+        rot_mat = np.column_stack([local_x, local_y, normal])
+
+        # Add filled box geometry (very thin to appear as a plane)
+        self.scn.ngeom += 1
+        geom = self.scn.geoms[self.scn.ngeom - 1]
+        geom.category = mujoco.mjtCatBit.mjCAT_DECOR
+
+        # Size: [half-width, half-height, half-thickness]
+        thickness = 0.001
+        size = np.array([width / 2, height / 2, thickness])
+
+        mujoco.mjv_initGeom(
+            geom=geom,
+            type=mujoco.mjtGeom.mjGEOM_BOX.value,
+            size=size,
+            pos=center,
+            mat=rot_mat.flatten(),
+            rgba=np.asarray(color, dtype=np.float32),
+        )
+
+        # Calculate the 4 corners for edges
+        half_width = width / 2
+        half_height = height / 2
+        
+        corners = [
+            center + local_x * half_width + local_y * half_height,   # top-right
+            center - local_x * half_width + local_y * half_height,   # top-left
+            center - local_x * half_width - local_y * half_height,   # bottom-left
+            center + local_x * half_width - local_y * half_height,   # bottom-right
+        ]
+
+        # Draw 4 edges as cylinders for borders
+        edge_color = (color[0], color[1], color[2], min(1.0, color[3] * 1.2))
+        for i in range(4):
+            start = corners[i]
+            end = corners[(i + 1) % 4]
+            self.add_cylinder(
+                start=start,
+                end=end,
+                radius=edge_radius,
+                color=edge_color,
+                label=None,
+            )
+
 
   @override
   def add_frame(
