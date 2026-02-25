@@ -65,7 +65,7 @@ Yes, mjlab supports **multi-GPU distributed training** using
 
 - Use ``--gpu-ids 0 1`` (or ``--gpu-ids all``) when running the ``train``
   command.
-- See the :doc:`distributed_training` for configuration details and examples.
+- See the :doc:`training/distributed_training` for configuration details and examples.
 
 Training & Debugging
 --------------------
@@ -127,7 +127,7 @@ Enable ``nan_guard`` to capture the simulation state when NaNs occur:
 
    uv run train.py --enable-nan-guard True
 
-See the :doc:`NaN Guard documentation <nan_guard>` for details.
+See the :doc:`NaN Guard documentation <debugging/nan_guard>` for details.
 
 The ``nan_guard`` tool makes it easier to:
 
@@ -137,6 +137,8 @@ The ``nan_guard`` tool makes it easier to:
   `MuJoCo Warp team <https://github.com/google-deepmind/mujoco_warp/issues>`_.
 
 Reporting well-isolated issues helps improve the framework for everyone.
+
+.. _faq-sim-forward:
 
 When do I need to call ``sim.forward()``?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -454,9 +456,3 @@ being worked on.
 
 If something isn't working or if we've missed something, please
 `file a bug report <https://github.com/mujocolab/mjlab/issues/new>`_.
-
-.. important::
-
-   mjlab has reached v1.0.0! While we strive for stability, please note that
-   MuJoCo Warp (our physics backend) is still in beta. Feedback and
-   contributions are very welcome.

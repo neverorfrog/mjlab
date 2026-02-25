@@ -1,4 +1,4 @@
-![Project banner](docs/source/_static/mjlab-banner.jpg)
+![Project banner](https://raw.githubusercontent.com/mujocolab/mjlab/main/docs/source/_static/mjlab-banner.jpg)
 
 # mjlab
 
@@ -6,6 +6,7 @@
 [![Documentation](https://github.com/mujocolab/mjlab/actions/workflows/docs.yml/badge.svg)](https://mujocolab.github.io/mjlab/)
 [![License](https://img.shields.io/github/license/mujocolab/mjlab)](https://github.com/mujocolab/mjlab/blob/main/LICENSE)
 [![Nightly Benchmarks](https://img.shields.io/badge/Nightly-Benchmarks-blue)](https://mujocolab.github.io/mjlab/nightly/)
+[![PyPI](https://img.shields.io/pypi/v/mjlab)](https://pypi.org/project/mjlab/)
 
 mjlab combines [Isaac Lab](https://github.com/isaac-sim/IsaacLab)'s manager-based API with [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp), a GPU-accelerated version of [MuJoCo](https://github.com/google-deepmind/mujoco).
 The framework provides composable building blocks for environment design,
@@ -20,9 +21,7 @@ mjlab requires an NVIDIA GPU for training. macOS is supported for evaluation onl
 Run the demo (no installation needed):
 
 ```bash
-uvx --from mjlab --refresh \
-  --with "mujoco-warp @ git+https://github.com/google-deepmind/mujoco_warp@7c20a44bfed722e6415235792a1b247ea6b6a6d3" \
-  demo
+uvx --from mjlab --refresh demo
 ```
 
 Or try in [Google Colab](https://colab.research.google.com/github/mujocolab/mjlab/blob/main/notebooks/demo.ipynb) (no local setup required).
@@ -34,7 +33,7 @@ git clone https://github.com/mujocolab/mjlab.git && cd mjlab
 uv run demo
 ```
 
-For alternative installation methods (PyPI, Docker), see the [Installation Guide](https://mujocolab.github.io/mjlab/source/installation.html).
+For alternative installation methods (PyPI, Docker), see the [Installation Guide](https://mujocolab.github.io/mjlab/main/source/installation.html).
 
 ## Training Examples
 
@@ -54,7 +53,7 @@ uv run train Mjlab-Velocity-Flat-Unitree-G1 \
   --env.scene.num-envs 4096
 ```
 
-See the [Distributed Training guide](https://mujocolab.github.io/mjlab/source/distributed_training.html) for details.
+See the [Distributed Training guide](https://mujocolab.github.io/mjlab/main/source/training/distributed_training.html) for details.
 
 Evaluate a policy while training (fetches latest checkpoint from Weights & Biases):
 
@@ -162,6 +161,18 @@ mjlab is used for research and robotics applications around the world. Examples:
       </a>
     </td>
     <td>Official Unitree RL environments for Go2, G1, and H1_2.</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/Msornerrrr/in-hand-rotation-mjlab">
+        Msornerrrr/in-hand-rotation-mjlab
+        <br /><img
+          alt="GitHub stars"
+          src="https://img.shields.io/github/stars/Msornerrrr/in-hand-rotation-mjlab?style=social"
+        />
+      </a>
+    </td>
+    <td>Sim-to-real RL for in-hand cube rotation with the LEAP Hand.</td>
   </tr>
 </table>
 
