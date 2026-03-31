@@ -93,6 +93,30 @@ class DebugVisualizer(ABC):
     """
     ...
 
+
+  @abstractmethod
+  def add_rectangle(
+    self,
+    center: np.ndarray | torch.Tensor,
+    width: float,
+    height: float,
+    normal: np.ndarray | torch.Tensor,
+    color: tuple[float, float, float, float],
+    label: str | None = None,
+  ) -> None:
+    """Add a rectangle visualization.
+
+    Args:
+      center: Center position (3D vector).
+      width: Rectangle width.
+      height: Rectangle height.
+      normal: Normal vector defining rectangle orientation (3D vector).
+      color: RGBA color (values 0-1).
+      label: Optional label for this rectangle.
+    """
+    ...
+  
+  
   @abstractmethod
   def add_frame(
     self,
@@ -219,6 +243,17 @@ class NullDebugVisualizer:
     label=None,
   ) -> None:
     del mocap_pos, mocap_quat
+    pass
+  
+  def add_rectangle(
+    self,
+    center,
+    width,
+    height,
+    normal,
+    color,
+    label=None,
+  ) -> None:
     pass
 
   def add_frame(
