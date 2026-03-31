@@ -264,6 +264,7 @@ class ManagerBasedRlEnv:
     if getattr(self.command_manager, "active_terms", None):
       self.manager_visualizers["command_manager"] = self.command_manager
     self.manager_visualizers["event_manager"] = self.event_manager
+    self.manager_visualizers["reward_manager"] = self.reward_manager
 
   def load_managers(self) -> None:
     """Load and initialize all managers.
@@ -374,6 +375,7 @@ class ManagerBasedRlEnv:
       self.scene.write_data_to_sim()
       self.sim.step()
       self.scene.update(dt=self.physics_dt)
+      self.metrics_manager.compute_substep()
 
     # Update env counters.
     self.episode_length_buf += 1
