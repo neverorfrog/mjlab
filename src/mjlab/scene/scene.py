@@ -230,7 +230,8 @@ class Scene:
       return
     self._cfg.terrain.num_envs = self._cfg.num_envs
     self._cfg.terrain.env_spacing = self._cfg.env_spacing
-    terrain = TerrainEntity(self._cfg.terrain, device=self._device)
+    cls = getattr(self._cfg.terrain, "class_type", TerrainEntity)
+    terrain = cls(self._cfg.terrain, device=self._device)
     self._terrain = terrain
     self._entities["terrain"] = terrain
     frame = self._spec.worldbody.add_frame()
