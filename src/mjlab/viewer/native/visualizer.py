@@ -131,10 +131,10 @@ class MujocoNativeDebugVisualizer(DebugVisualizer):
   @override
   def add_rectangle(
     self,
-    center: np.ndarray | torch.Tensor,
+    center: np.ndarray,
     width: float,
     height: float,
-    normal: np.ndarray | torch.Tensor | None = None,
+    normal: np.ndarray | None = None,
     color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 0.5),
     edge_radius: float = 0.005,
     label: str | None = None,
@@ -153,16 +153,10 @@ class MujocoNativeDebugVisualizer(DebugVisualizer):
     """
     del label  # Unused.
 
-    # Convert inputs to numpy arrays
-    if isinstance(center, torch.Tensor):
-      center = center.cpu().numpy()
     center = np.asarray(center, dtype=np.float32).flatten()
 
     if normal is None:
-      # Default: rectangle in XY plane
       normal = np.array([0.0, 0.0, 1.0])
-    elif isinstance(normal, torch.Tensor):
-      normal = normal.cpu().numpy()
     normal = np.asarray(normal, dtype=np.float32).flatten()
     normal = normal / np.linalg.norm(normal)
 

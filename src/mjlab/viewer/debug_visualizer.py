@@ -97,10 +97,10 @@ class DebugVisualizer(ABC):
   @abstractmethod
   def add_rectangle(
     self,
-    center: np.ndarray | torch.Tensor,
+    center: np.ndarray,
     width: float,
     height: float,
-    normal: np.ndarray | torch.Tensor,
+    normal: np.ndarray,
     color: tuple[float, float, float, float],
     label: str | None = None,
   ) -> None:
