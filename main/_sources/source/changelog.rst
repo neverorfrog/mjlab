@@ -8,6 +8,26 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added :class:`~mjlab.managers.RecorderManager` for logging observations,
+  actions, or arbitrary environment data during rollouts. Implement a
+  :class:`~mjlab.managers.RecorderTerm` subclass and register it in the
+  ``recorders`` dict on ``ManagerBasedRlEnvCfg``. The manager provides
+  ``record_pre_reset``, ``record_post_reset``, and ``record_post_step``
+  lifecycle hooks with no opinion on how data is stored.
+- Added :func:`~mjlab.envs.mdp.curriculums.termination_curriculum` for
+  scheduling changes to termination term parameters during training,
+  matching the existing ``reward_curriculum`` pattern. Both now share a
+  single internal engine with init-time validation of stage ordering,
+  field existence, and param keys.
+- Added ``reduce`` field to ``MetricsTermCfg``. Setting ``reduce="last"``
+  reports the value from the final step of the episode rather than the
+  episode mean, which is useful for binary success metrics.
+- Added :class:`~mjlab.envs.mdp.actions.RelativeJointPositionAction` for
+  joint position control relative to the current configuration. The target is
+  ``current_pos + action * scale``, so a zero action holds the current
+  configuration rather than commanding the default pose.
+- Added :func:`~mjlab.envs.mdp.dr.pair_friction` for randomizing geom-pair
+  friction overrides (``pair_friction`` in ``mjModel``).
 - Added ``STAIRS_TERRAINS_CFG`` terrain preset for progressive stair
   curriculum training and ``@terrain_preset`` decorator for composing
   terrain configurations from reusable presets.
@@ -36,6 +56,8 @@ Added
   once per physics substep inside the decimation loop. The per substep
   values are averaged within each environment step, so episode averages
   remain comparable to regular per step metrics.
+- Added ``project-instinct/InstinctMJ`` to the research page's list of
+  projects built on mjlab.
 - Added a Checkpoints tab to the Viser play viewer for hot-swapping
   checkpoints without restarting. Works with local directories and W&B
   runs (:issue:`751`). Contribution by @omarrayyann.
@@ -83,6 +105,8 @@ Changed
 Fixed
 ^^^^^
 
+- Fixed ``SceneEntityCfg`` names and IDs ordering mismatch when
+  ``preserve_order=False`` (:issue:`876`). Contribution by @jsw7460.
 - Fixed ONNX export path resolution in the velocity, manipulation, and
   tracking runners when a parent directory name contains the word
   ``"model"`` (:issue:`867`). Contribution by @gokulp01.
