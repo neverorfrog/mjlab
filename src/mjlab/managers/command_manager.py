@@ -114,6 +114,18 @@ class CommandTerm(ManagerTermBase):
       self._resample(resample_env_ids)
     self._update_command()
 
+  def state_dict(self) -> dict[str, Any]:
+    """Serializable term state for checkpointing.
+
+    Override in subclasses that hold state which must survive a restart (e.g. a
+    curriculum grid). The default returns nothing, so stateless terms are
+    skipped by :meth:`CommandManager.state_dict`.
+    """
+    return {}
+
+  def load_state_dict(self, state: dict[str, Any]) -> None:
+    """Restore state produced by :meth:`state_dict`. Default: no-op."""
+
   def _resample(self, env_ids: torch.Tensor) -> None:
     if len(env_ids) != 0:
       self.time_left[env_ids] = self.time_left[env_ids].uniform_(
@@ -249,6 +261,27 @@ class CommandManager(ManagerBase):
   def compute(self, dt: float):
     for term in self._terms.values():
       term.compute(dt)
+
+  def state_dict(self) -> dict[str, dict[str, Any]]:
+    """Aggregate serializable state across command terms.
+
+    Only terms that return non-empty :meth:`CommandTerm.state_dict` are
+    included, keyed by term name. Algorithm-agnostic: callers persist this dict
+    without needing to know which terms hold state.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for name, term in self._terms.items():
+      term_state = term.state_dict()
+      if term_state:
+        out[name] = term_state
+    return out
+
+  def load_state_dict(self, state: dict[str, dict[str, Any]]) -> None:
+    """Restore per-term state by name; entries for unknown terms are ignored."""
+    for name, term_state in state.items():
+      term = self._terms.get(name)
+      if term is not None:
+        term.load_state_dict(term_state)
 
   def get_command(self, name: str) -> torch.Tensor:
     return self._terms[name].command
