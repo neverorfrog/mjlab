@@ -43,14 +43,25 @@ class ActuatorCfg(ABC):
   transmission_type: TransmissionType = TransmissionType.JOINT
   """Transmission type. Defaults to JOINT."""
 
-  armature: float = 0.0
-  """Reflected rotor inertia."""
+  armature: float | None = None
+  """Reflected rotor inertia. None preserves the XML value."""
 
-  frictionloss: float = 0.0
-  """Friction loss force limit.
+  frictionloss: float | None = None
+  """Friction loss force limit. None preserves the XML value.
 
   Applies a constant friction force opposing motion, independent of load or velocity.
   Also known as dry friction or load-independent friction.
+  """
+
+  viscous_damping: float | None = None
+  """Passive viscous damping coefficient. None preserves the XML value.
+
+  Produces a dissipative force f(v) = -b·v proportional to velocity. Always present
+  regardless of actuator activity. Unlike ``damping`` (the PD derivative gain kv, which
+  is active control), this is a passive property.
+
+  Maps to ``<joint damping>`` for JOINT transmission and ``<tendon damping>``
+  for TENDON transmission. Ignored for SITE.
   """
 
   delay_min_lag: int = 0
@@ -76,13 +87,21 @@ class ActuatorCfg(ABC):
   on the same step."""
 
   def __post_init__(self) -> None:
-    assert self.armature >= 0.0, "armature must be non-negative."
-    assert self.frictionloss >= 0.0, "frictionloss must be non-negative."
+    if self.armature is not None:
+      assert self.armature >= 0.0, "armature must be non-negative."
+    if self.frictionloss is not None:
+      assert self.frictionloss >= 0.0, "frictionloss must be non-negative."
+    if self.viscous_damping is not None:
+      assert self.viscous_damping >= 0.0, "viscous_damping must be non-negative."
     if self.transmission_type == TransmissionType.SITE:
-      if self.armature > 0.0 or self.frictionloss > 0.0:
+      if (
+        (self.armature is not None and self.armature > 0.0)
+        or (self.frictionloss is not None and self.frictionloss > 0.0)
+        or (self.viscous_damping is not None and self.viscous_damping > 0.0)
+      ):
         raise ValueError(
-          f"{self.__class__.__name__}: armature and frictionloss are not supported for "
-          "SITE transmission type."
+          f"{self.__class__.__name__}: armature, frictionloss, and viscous_damping are "
+          "not supported for SITE transmission type."
         )
     assert self.delay_min_lag >= 0, "delay_min_lag must be non-negative."
     assert self.delay_max_lag >= 0, "delay_max_lag must be non-negative."
@@ -154,15 +173,6 @@ class Actuator(ABC, Generic[ActuatorCfgT]):
   def has_delay(self) -> bool:
     """Whether this actuator has delay configured."""
     return self.cfg.delay_max_lag > 0
-
-  @property
-  def command_field(self) -> CommandField | None:
-    """The primary command field this actuator consumes.
-
-    Returns None by default. Subclasses should override to return the
-    appropriate field.
-    """
-    return None
 
   @property
   def target_ids(self) -> torch.Tensor:
@@ -252,11 +262,6 @@ class Actuator(ABC, Generic[ActuatorCfgT]):
     """Create delay buffer. Called during initialize()."""
     if not self.has_delay:
       return
-    if self.command_field is None:
-      raise ValueError(
-        f"{self.__class__.__name__}: delay is configured (delay_max_lag="
-        f"{self.cfg.delay_max_lag}) but command_field is not defined."
-      )
     self._delay_buffer = DelayBuffer(
       min_lag=self.cfg.delay_min_lag,
       max_lag=self.cfg.delay_max_lag,
@@ -268,19 +273,25 @@ class Actuator(ABC, Generic[ActuatorCfgT]):
     )
 
   def apply_delay(self, cmd: ActuatorCmd) -> ActuatorCmd:
-    """Apply delay to the command_field target. No-op without delay."""
+    """Delay all command targets with one shared lag. No-op without delay.
+
+    Every target the policy issues (position, velocity, effort) travels the same
+    command channel and experiences the same latency, so they are stacked and
+    delayed together. Feedback fields (``pos``, ``vel``) are never delayed.
+    """
     if self._delay_buffer is None:
       return cmd
-    cf = self.command_field
-    if cf == "position":
-      self._delay_buffer.append(cmd.position_target)
-      return dataclasses.replace(cmd, position_target=self._delay_buffer.compute())
-    elif cf == "velocity":
-      self._delay_buffer.append(cmd.velocity_target)
-      return dataclasses.replace(cmd, velocity_target=self._delay_buffer.compute())
-    else:
-      self._delay_buffer.append(cmd.effort_target)
-      return dataclasses.replace(cmd, effort_target=self._delay_buffer.compute())
+    targets = torch.stack(
+      (cmd.position_target, cmd.velocity_target, cmd.effort_target), dim=-1
+    )
+    self._delay_buffer.append(targets)
+    delayed = self._delay_buffer.compute()
+    return dataclasses.replace(
+      cmd,
+      position_target=delayed[..., 0],
+      velocity_target=delayed[..., 1],
+      effort_target=delayed[..., 2],
+    )
 
   def set_lags(
     self,

@@ -13,6 +13,7 @@ import tyro
 
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
+from mjlab.scripts._cli import maybe_print_top_level_help
 from mjlab.tasks.registry import list_tasks, load_env_cfg, load_rl_cfg, load_runner_cls
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.utils.os import get_wandb_checkpoint_path
@@ -48,6 +49,8 @@ class PlayConfig:
   viewer: Literal["auto", "native", "viser"] = "auto"
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
+  log_root: str = "logs/rsl_rl"
+  """Root directory under which experiment logs are written."""
 
   # Internal flag used by demo script.
   _demo_mode: tyro.conf.Suppress[bool] = False
@@ -129,7 +132,7 @@ def run_play(task_id: str, cfg: PlayConfig):
   log_dir: Path | None = None
   resume_path: Path | None = None
   if TRAINED_MODE:
-    log_root_path = (Path("logs") / "rsl_rl" / agent_cfg.experiment_name).resolve()
+    log_root_path = (Path(cfg.log_root) / agent_cfg.experiment_name).resolve()
     if cfg.checkpoint_file is not None:
       resume_path = Path(cfg.checkpoint_file)
       if not resume_path.exists():
@@ -295,6 +298,8 @@ def run_play(task_id: str, cfg: PlayConfig):
 
 
 def main():
+  maybe_print_top_level_help("play")
+
   # Parse first argument to choose the task.
   # Import tasks to populate the registry.
   import mjlab.tasks  # noqa: F401
