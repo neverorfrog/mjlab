@@ -59,7 +59,7 @@
     <link rel="prev" title="mjlab.sensor" href="sensor.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-    <meta name="docbuild:last-update" content="Apr 06, 2026"/>
+    <meta name="docbuild:last-update" content="May 29, 2026"/>
   </head>
   
   
@@ -189,6 +189,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../architecture_overview.html">Architecture Overview</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../entity/index.html">Entity</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../entity/entity_data.html">Entity Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../entity/per_world_mesh.html">Heterogeneous Worlds</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../actuators.html">Actuators</a></li>
@@ -597,6 +598,8 @@ document.write(`
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.apply_gui_reset"><code class="docutils literal notranslate"><span class="pre">CommandManager.apply_gui_reset()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.create_debug_vis_gui"><code class="docutils literal notranslate"><span class="pre">CommandManager.create_debug_vis_gui()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.reset"><code class="docutils literal notranslate"><span class="pre">CommandManager.reset()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.state_dict"><code class="docutils literal notranslate"><span class="pre">CommandManager.state_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.load_state_dict"><code class="docutils literal notranslate"><span class="pre">CommandManager.load_state_dict()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.NullCommandManager"><code class="docutils literal notranslate"><span class="pre">NullCommandManager</span></code></a><ul class="nav section-nav flex-column">
@@ -609,6 +612,8 @@ document.write(`
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.on_viewer_pause"><code class="docutils literal notranslate"><span class="pre">CommandTerm.on_viewer_pause()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.apply_gui_reset"><code class="docutils literal notranslate"><span class="pre">CommandTerm.apply_gui_reset()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.reset"><code class="docutils literal notranslate"><span class="pre">CommandTerm.reset()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.state_dict"><code class="docutils literal notranslate"><span class="pre">CommandTerm.state_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.load_state_dict"><code class="docutils literal notranslate"><span class="pre">CommandTerm.load_state_dict()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTermCfg"><code class="docutils literal notranslate"><span class="pre">CommandTermCfg</span></code></a><ul class="nav section-nav flex-column">
@@ -1430,6 +1435,21 @@ intervals and can track metrics for logging.</p>
 <dd><p>Resets the manager and returns logging info for the current step.</p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="mjlab.managers.CommandManager.state_dict">
+<span class="sig-name descname"><span class="pre">state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/mjlab/managers/command_manager.html#CommandManager.state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mjlab.managers.CommandManager.state_dict" title="Link to this definition">#</a></dt>
+<dd><p>Aggregate serializable state across command terms.</p>
+<p>Only terms that return non-empty <a class="reference internal" href="#mjlab.managers.CommandTerm.state_dict" title="mjlab.managers.CommandTerm.state_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CommandTerm.state_dict()</span></code></a> are
+included, keyed by term name. Algorithm-agnostic: callers persist this dict
+without needing to know which terms hold state.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mjlab.managers.CommandManager.load_state_dict">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../_modules/mjlab/managers/command_manager.html#CommandManager.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mjlab.managers.CommandManager.load_state_dict" title="Link to this definition">#</a></dt>
+<dd><p>Restore per-term state by name; entries for unknown terms are ignored.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -1481,6 +1501,21 @@ the Viser viewer. Called once during viewer setup.</p>
 <dt class="sig sig-object py" id="mjlab.managers.CommandTerm.reset">
 <span class="sig-name descname"><span class="pre">reset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">env_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.14)"><span class="pre">slice</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/mjlab/managers/command_manager.html#CommandTerm.reset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mjlab.managers.CommandTerm.reset" title="Link to this definition">#</a></dt>
 <dd><p>Resets the manager term.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mjlab.managers.CommandTerm.state_dict">
+<span class="sig-name descname"><span class="pre">state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/mjlab/managers/command_manager.html#CommandTerm.state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mjlab.managers.CommandTerm.state_dict" title="Link to this definition">#</a></dt>
+<dd><p>Serializable term state for checkpointing.</p>
+<p>Override in subclasses that hold state which must survive a restart (e.g. a
+curriculum grid). The default returns nothing, so stateless terms are
+skipped by <a class="reference internal" href="#mjlab.managers.CommandManager.state_dict" title="mjlab.managers.CommandManager.state_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CommandManager.state_dict()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="mjlab.managers.CommandTerm.load_state_dict">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../_modules/mjlab/managers/command_manager.html#CommandTerm.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#mjlab.managers.CommandTerm.load_state_dict" title="Link to this definition">#</a></dt>
+<dd><p>Restore state produced by <a class="reference internal" href="#mjlab.managers.CommandTerm.state_dict" title="mjlab.managers.CommandTerm.state_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">state_dict()</span></code></a>. Default: no-op.</p>
 </dd></dl>
 
 </dd></dl>
@@ -2127,6 +2162,8 @@ supported because recorder terms are stateful (file handles, buffers, etc.).</p>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.apply_gui_reset"><code class="docutils literal notranslate"><span class="pre">CommandManager.apply_gui_reset()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.create_debug_vis_gui"><code class="docutils literal notranslate"><span class="pre">CommandManager.create_debug_vis_gui()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.reset"><code class="docutils literal notranslate"><span class="pre">CommandManager.reset()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.state_dict"><code class="docutils literal notranslate"><span class="pre">CommandManager.state_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandManager.load_state_dict"><code class="docutils literal notranslate"><span class="pre">CommandManager.load_state_dict()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.NullCommandManager"><code class="docutils literal notranslate"><span class="pre">NullCommandManager</span></code></a><ul class="nav section-nav flex-column">
@@ -2139,6 +2176,8 @@ supported because recorder terms are stateful (file handles, buffers, etc.).</p>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.on_viewer_pause"><code class="docutils literal notranslate"><span class="pre">CommandTerm.on_viewer_pause()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.apply_gui_reset"><code class="docutils literal notranslate"><span class="pre">CommandTerm.apply_gui_reset()</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.reset"><code class="docutils literal notranslate"><span class="pre">CommandTerm.reset()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.state_dict"><code class="docutils literal notranslate"><span class="pre">CommandTerm.state_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTerm.load_state_dict"><code class="docutils literal notranslate"><span class="pre">CommandTerm.load_state_dict()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mjlab.managers.CommandTermCfg"><code class="docutils literal notranslate"><span class="pre">CommandTermCfg</span></code></a><ul class="nav section-nav flex-column">
@@ -2255,7 +2294,7 @@ By The mjlab Developers
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on Apr 06, 2026.
+  Last updated on May 29, 2026.
   <br/>
 </p>
   </div>
