@@ -115,6 +115,25 @@ class EntityData:
     velocity_qvel = torch.cat([velocity[:, :3], ang_vel_b], dim=-1)
     self.data.qvel[env_ids, self.indexing.free_joint_v_adr] = velocity_qvel
 
+  def write_root_velocity_b(
+    self, velocity_b: torch.Tensor, env_ids: torch.Tensor | slice | None = None
+  ) -> None:
+    """Write the root link velocity given in the root link's body frame.
+
+    The orientation is read from qpos, so this is safe to call during a reset
+    before forward() has refreshed derived kinematics.
+    """
+    if self.is_fixed_base:
+      raise ValueError("Cannot write root velocity for fixed-base entity.")
+    assert velocity_b.shape[-1] == self.ROOT_VEL_DIM
+
+    env_ids = self._resolve_env_ids(env_ids)
+    quat_w = self.data.qpos[env_ids, self.indexing.free_joint_q_adr[3:7]]
+    lin_vel_w = quat_apply(quat_w, velocity_b[:, :3])
+    # Free joint qvel holds world-frame linear and body-frame angular velocity.
+    velocity_qvel = torch.cat([lin_vel_w, velocity_b[:, 3:]], dim=-1)
+    self.data.qvel[env_ids, self.indexing.free_joint_v_adr] = velocity_qvel
+
   def write_root_com_velocity(
     self, velocity: torch.Tensor, env_ids: torch.Tensor | slice | None = None
   ) -> None:
@@ -209,9 +228,11 @@ class EntityData:
       raise ValueError("Cannot write mocap pose for non-mocap entity.")
     assert pose.shape[-1] == self.ROOT_POSE_DIM
 
-    env_ids = self._resolve_env_ids(env_ids)
-    self.data.mocap_pos[env_ids, self.indexing.mocap_id] = pose[:, 0:3].unsqueeze(1)
-    self.data.mocap_quat[env_ids, self.indexing.mocap_id] = pose[:, 3:7].unsqueeze(1)
+    # Bypass _resolve_env_ids since mocap is always a single body.
+    if env_ids is None:
+      env_ids = slice(None)
+    self.data.mocap_pos[env_ids, self.indexing.mocap_id] = pose[:, 0:3]
+    self.data.mocap_quat[env_ids, self.indexing.mocap_id] = pose[:, 3:7]
 
   def clear_state(self, env_ids: torch.Tensor | slice | None = None) -> None:
     if self.is_actuated:

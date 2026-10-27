@@ -104,6 +104,64 @@ def test_delay_buffer_shared_lags(device):
   assert torch.all(lags == lags[0])
 
 
+@pytest.mark.parametrize("per_env", [True, False])
+def test_hold_decision_matches_lag_sharing(device, per_env):
+  """The hold decision is drawn per env, or once for the batch in shared mode."""
+  B, steps = 256, 40
+  buf = DelayBuffer(
+    min_lag=0,
+    max_lag=50,
+    batch_size=B,
+    per_env=per_env,
+    hold_prob=0.5,
+    device=device,
+    generator=make_gen(0, device),
+  )
+  obs = torch.zeros(B, 1, device=device)
+  buf.append(obs)
+  buf.compute()
+
+  num_held_steps = 0
+  for _ in range(steps):
+    prev = buf.current_lags.clone()
+    buf.append(obs)
+    buf.compute()
+    num_held = int((buf.current_lags == prev).sum())
+    if per_env:
+      # About half of the envs hold on any given step.
+      assert B // 4 < num_held < 3 * B // 4
+    else:
+      assert torch.all(buf.current_lags == buf.current_lags[0])
+      num_held_steps += num_held == B
+  if not per_env:
+    # The whole batch holds on about half of the steps.
+    assert steps // 8 < num_held_steps < 7 * steps // 8
+
+
+@pytest.mark.parametrize("update_period", [0, 5])
+def test_shared_lag_survives_partial_resets(device, update_period):
+  """Partial resets do not pull envs off the shared lag or its schedule."""
+  B = 8
+  buf = DelayBuffer(
+    min_lag=1,
+    max_lag=5,
+    batch_size=B,
+    per_env=False,
+    hold_prob=0.5,
+    update_period=update_period,
+    device=device,
+    generator=make_gen(0, device),
+  )
+  obs = torch.zeros(B, 1, device=device)
+  for t in range(60):
+    if t % 3 == 0:
+      buf.reset([t % B, (t + 3) % B])
+    buf.append(obs)
+    buf.compute()
+    lags = buf.current_lags
+    assert torch.all(lags == lags[0]) and lags[0] >= 1
+
+
 ##
 # Hold probability.
 ##
@@ -209,6 +267,39 @@ def test_update_period_changes_only_on_schedule(device):
   assert lag_values[9] == lag_values[10] == lag_values[11]
 
 
+@pytest.mark.parametrize(
+  "kwargs",
+  [
+    {"update_period": 10, "per_env_phase": True},
+    {"hold_prob": 0.5},
+  ],
+  ids=["staggered_update_period", "hold_prob"],
+)
+def test_lags_stay_within_range_from_first_step(device, kwargs):
+  """Lags never fall below min_lag, including right after creation and reset."""
+  B = 16
+  buf = DelayBuffer(
+    min_lag=2,
+    max_lag=2,
+    batch_size=B,
+    device=device,
+    generator=make_gen(0, device),
+    **kwargs,
+  )
+
+  def run(start: int) -> None:
+    for t in range(start, start + 4):
+      buf.append(torch.full((B, 1), float(t), device=device))
+      y = buf.compute()
+      assert torch.all(buf.current_lags == 2), buf.current_lags.tolist()
+      expected = float(max(t - 2, start))
+      assert torch.all(y == expected), y.squeeze(-1).tolist()
+
+  run(0)
+  buf.reset()
+  run(100)
+
+
 ##
 # Reset behavior.
 ##
@@ -298,3 +389,30 @@ def test_delay_buffer_validation(device):
 
   with pytest.raises(ValueError, match="update_period must be >= 0"):
     DelayBuffer(min_lag=0, max_lag=3, batch_size=1, update_period=-1, device=device)
+
+
+def test_backfill_and_peek_leave_others_untouched(device):
+  """backfill serves the reset row's new frame; peek advances no schedules."""
+  B = 3
+  buf = DelayBuffer(1, 2, batch_size=B, device=device, generator=make_gen(9, device))
+  for t in range(4):
+    x = torch.arange(1, B + 1, device=device).float().unsqueeze(1) * 10 + t
+    buf.append(x)
+    buf.compute()
+
+  out_before = buf.peek()
+  lags_before = buf.current_lags.clone()
+  steps_before = buf._step_count.clone()
+
+  reset_ids = torch.tensor([1], device=device)
+  buf.reset(batch_ids=reset_ids)
+  buf.backfill(torch.tensor([[-1.0], [999.0], [-1.0]], device=device), reset_ids)
+  out = buf.peek()
+
+  # Reset row serves its backfilled frame (lag zeroed, one valid frame).
+  assert torch.allclose(out[1], torch.tensor([999.0], device=device))
+  # Other rows: same delayed frame, lags and schedule untouched.
+  keep = torch.tensor([0, 2], device=device)
+  assert torch.allclose(out[keep], out_before[keep])
+  assert torch.equal(buf.current_lags[keep], lags_before[keep])
+  assert torch.equal(buf._step_count[keep], steps_before[keep])

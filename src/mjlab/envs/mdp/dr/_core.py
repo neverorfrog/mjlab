@@ -39,6 +39,7 @@ _ENTITY_NAMES_ATTR: dict[str, str] = {
   "camera": "camera_names",
   "light": "light_names",
   "material": "material_names",
+  "texture": "texture_names",
   "pair": "pair_names",
 }
 
@@ -60,14 +61,14 @@ def _randomize_model_field(
   default_axes: list[int] | None = None,
   valid_axes: list[int] | None = None,
   use_address: bool = False,
-) -> None:
-  """Core randomization engine for model fields."""
+) -> torch.Tensor:
+  """Core randomization engine for model fields. Returns the written entity indices."""
   operation = resolve_operation(operation)
   distribution = resolve_distribution(distribution)
 
   # Handle string-keyed ranges: resolve each pattern and recurse.
   if isinstance(ranges, dict) and ranges and isinstance(next(iter(ranges)), str):
-    _randomize_with_string_ranges(
+    return _randomize_with_string_ranges(
       env,
       env_ids,
       field,
@@ -82,7 +83,6 @@ def _randomize_model_field(
       valid_axes=valid_axes,
       use_address=use_address,
     )
-    return
 
   # At this point, string-keyed ranges have been handled above.
   narrowed_ranges: tuple[float, float] | dict[int, tuple[float, float]] = ranges  # type: ignore[assignment]
@@ -133,7 +133,20 @@ def _randomize_model_field(
       operation,
     )
 
-  model_field[env_grid, entity_grid] = operation.combine(base_values, random_values)
+  combined = operation.combine(base_values, random_values)
+
+  # Only write back the axes we targeted. Non-target axes in ``combined`` hold the
+  # operation identity applied to ``base_values`` (e.g. ``default * 1`` for scale),
+  # so writing the full slice would clobber modifications made by earlier events
+  # that targeted different axes of the same field. We loop with an integer axis
+  # index (basic indexing) rather than a device index tensor to avoid a
+  # per-call host-to-device copy; ``target_axes`` is tiny (at most 4).
+  if combined.ndim > 2:
+    for axis in target_axes:
+      model_field[env_grid, entity_grid, axis] = combined[..., axis]
+  else:
+    model_field[env_grid, entity_grid] = combined
+  return entity_indices
 
 
 def _randomize_with_string_ranges(
@@ -151,12 +164,13 @@ def _randomize_with_string_ranges(
   default_axes: list[int] | None,
   valid_axes: list[int] | None,
   use_address: bool,
-) -> None:
+) -> torch.Tensor:
   """Resolve string-keyed ranges to entity names and recurse."""
   asset: Entity = env.scene[asset_cfg.name]
   names_attr = _ENTITY_NAMES_ATTR[entity_type]
   all_names = list(getattr(asset, names_attr))
 
+  written: list[torch.Tensor] = []
   for pattern, range_val in ranges.items():
     matched = [n for n in all_names if re.fullmatch(pattern, n)]
     if not matched:
@@ -167,7 +181,7 @@ def _randomize_with_string_ranges(
     sub_cfg = SceneEntityCfg(asset_cfg.name)
     setattr(sub_cfg, names_attr, tuple(matched))
     sub_cfg.resolve(env.scene)
-    _randomize_model_field(
+    indices = _randomize_model_field(
       env,
       env_ids,
       field,
@@ -182,6 +196,8 @@ def _randomize_with_string_ranges(
       valid_axes=valid_axes,
       use_address=use_address,
     )
+    written.append(indices)
+  return torch.cat(written)
 
 
 def _get_entity_indices(
@@ -214,6 +230,8 @@ def _get_entity_indices(
       return indexing.light_ids[asset_cfg.light_ids]
     case "material":
       return indexing.mat_ids[asset_cfg.material_ids]
+    case "texture":
+      return indexing.tex_ids[asset_cfg.texture_ids]
     case "pair":
       return indexing.pair_ids[asset_cfg.pair_ids]
     case _:
@@ -298,6 +316,42 @@ def _generate_random_values(
       result = random_vals
 
   return result
+
+
+# Categorical engine.
+
+
+def _randomize_categorical_field(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor | None,
+  field: str,
+  *,
+  entity_type: str,
+  pool: torch.Tensor,
+  asset_cfg: SceneEntityCfg,
+  shared_random: bool = False,
+  axis: int | None = None,
+) -> None:
+  """Core engine for categorical fields: assign each entry a value from ``pool``."""
+  asset = env.scene[asset_cfg.name]
+
+  if env_ids is None:
+    env_ids = torch.arange(env.num_envs, device=env.device, dtype=torch.int)
+  else:
+    env_ids = env_ids.to(env.device, dtype=torch.int)
+
+  entity_indices = _get_entity_indices(asset.indexing, asset_cfg, entity_type, False)
+  env_grid, entity_grid = torch.meshgrid(env_ids, entity_indices, indexing="ij")
+
+  sample_shape = (env_ids.numel(), 1) if shared_random else env_grid.shape
+  pick = torch.randint(0, int(pool.numel()), sample_shape, device=env.device)
+  pick = pick.expand(env_grid.shape)
+
+  model_field = getattr(env.sim.model, field)
+  if axis is None:
+    model_field[env_grid, entity_grid] = pool[pick]
+  else:
+    model_field[env_grid, entity_grid, axis] = pool[pick]
 
 
 # Quaternion helpers.

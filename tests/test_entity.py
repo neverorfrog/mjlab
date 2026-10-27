@@ -12,6 +12,7 @@ from mjlab.actuator import BuiltinPositionActuatorCfg, XmlActuatorCfg
 from mjlab.entity import Entity, EntityArticulationInfoCfg, EntityCfg
 from mjlab.scene import Scene, SceneCfg
 from mjlab.sim.sim import Simulation, SimulationCfg
+from mjlab.utils.spec_config import CollisionCfg, GeomCfg
 
 FIXED_BASE_XML = """
 <mujoco>
@@ -264,6 +265,34 @@ def test_multiple_freejoints_raises():
     Entity(cfg)
 
 
+def test_geom_editor_applied():
+  """Test that geom editors are applied during entity init."""
+  cfg = EntityCfg(
+    spec_fn=lambda: mujoco.MjSpec.from_string(FIXED_BASE_ARTICULATED_XML),
+    geoms=(GeomCfg(geom_names_expr=("link.*_geom",), group=3),),
+  )
+  entity = Entity(cfg)
+
+  assert entity.spec.geom("link1_geom").group == 3
+  assert entity.spec.geom("link2_geom").group == 3
+  assert entity.spec.geom("base_geom").group == 0
+
+
+def test_geom_collision_overlap_warns():
+  """A GeomCfg collision patch clobbered by a CollisionCfg triggers a warning."""
+  cfg = EntityCfg(
+    spec_fn=lambda: mujoco.MjSpec.from_string(FIXED_BASE_ARTICULATED_XML),
+    geoms=(GeomCfg(geom_names_expr=("link1_geom",), condim=6),),
+    collisions=(
+      CollisionCfg(
+        geom_names_expr=("link.*_geom",), contype=1, conaffinity=1, condim=3, priority=0
+      ),
+    ),
+  )
+  with pytest.warns(UserWarning, match="link1_geom.condim"):
+    Entity(cfg)
+
+
 def test_find_methods():
   """Test find methods with exact and regex matches."""
   entity = create_floating_articulated_entity()
@@ -474,7 +503,7 @@ def test_fixed_base_mocap_runtime_pose_change(device):
     init_state=EntityCfg.InitialStateCfg((1.0, 2.0, 3.0), (1.0, 0.0, 0.0, 0.0)),
   )
   entity = Entity(cfg)
-  entity, sim = initialize_entity_with_sim(entity, device)
+  entity, sim = initialize_entity_with_sim(entity, device, num_envs=4)
 
   assert entity.indexing.mocap_id is not None
   assert entity.is_mocap is True
@@ -483,8 +512,9 @@ def test_fixed_base_mocap_runtime_pose_change(device):
   new_pose = torch.tensor([
     5.0, 6.0, 7.0,
     1.0, 0.0, 0.0, 0.0,
-  ], device=device).unsqueeze(0)
+  ], device=device).repeat(4, 1)
   # fmt: on
+  new_pose[:, 0] = torch.arange(4, device=device)
   entity.write_mocap_pose_to_sim(new_pose)
 
   sim.forward()
@@ -720,6 +750,36 @@ def test_joint_pos_none_fixed_base_uses_keyframe():
   assert model.key(0).qpos[0] == 0.5
 
 
+@pytest.mark.parametrize(
+  "keyframe_xml",
+  [XML_WITH_KEYFRAME, XML_FIXED_BASE_WITH_KEYFRAME],
+  ids=["floating", "fixed"],
+)
+def test_joint_pos_none_reads_own_slots_of_scene_keyframe(device, keyframe_xml):
+  """joint_pos=None reads this entity's slots of the scene keyframe as float32."""
+  scene_cfg = SceneCfg(
+    num_envs=2,
+    entities={
+      "box": EntityCfg(spec_fn=lambda: mujoco.MjSpec.from_string(FLOATING_BASE_XML)),
+      "robot": EntityCfg(
+        init_state=EntityCfg.InitialStateCfg(joint_pos=None),
+        spec_fn=lambda: mujoco.MjSpec.from_string(keyframe_xml),
+      ),
+    },
+  )
+  scene = Scene(scene_cfg, device)
+  model = scene.compile()
+  sim = Simulation(num_envs=2, cfg=SimulationCfg(), model=model, device=device)
+  scene.initialize(sim.mj_model, sim.model, sim.data)
+  robot = scene["robot"]
+
+  default_joint_pos = robot.data.default_joint_pos
+  assert default_joint_pos.dtype == torch.float32
+  assert default_joint_pos.tolist() == [[0.5], [0.5]]
+  robot.write_joint_state_to_sim(default_joint_pos, robot.data.default_joint_vel)
+  assert robot.data.joint_pos.tolist() == [[0.5], [0.5]]
+
+
 XML_WITH_SITES_AND_TENDONS = """
 <mujoco>
   <worldbody>
@@ -825,3 +885,17 @@ def test_wildcard_warns_about_unactuated_namespaces():
   )
   with pytest.warns(match="also match.*tendon"):
     Entity(cfg)
+
+
+def test_set_joint_position_target_outer_product(device):
+  """Tensor env_ids + tensor joint_ids select the outer product, not a diagonal."""
+  entity = create_fixed_articulated_entity()
+  entity, _ = initialize_entity_with_sim(entity, device, num_envs=2)
+
+  targets = torch.tensor([[1.0, 2.0], [3.0, 4.0]], device=device)
+  entity.set_joint_position_target(
+    targets,
+    joint_ids=torch.tensor([0, 1], device=device),
+    env_ids=torch.tensor([0, 1], device=device),
+  )
+  assert torch.equal(entity.data.joint_pos_target, targets)

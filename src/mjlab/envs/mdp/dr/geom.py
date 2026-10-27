@@ -14,6 +14,7 @@ from ._core import (
   _DEFAULT_ASSET_CFG,
   Ranges,
   _get_entity_indices,
+  _randomize_categorical_field,
   _randomize_model_field,
   _randomize_quat_field,
 )
@@ -33,16 +34,14 @@ _GEOM_BOX = mujoco.mjtGeom.mjGEOM_BOX.value
 def _recompute_geom_bounds(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor,
-  asset_cfg: SceneEntityCfg,
+  entity_indices: torch.Tensor,
 ) -> None:
   """Recompute ``geom_rbound`` and ``geom_aabb`` from current ``geom_size``.
 
-  Only primitive types (sphere, capsule, ellipsoid, cylinder, box) are handled. Plane,
-  hfield, mesh, and SDF geoms are left unchanged.
+  ``entity_indices`` are global geom ids. Only primitive types (sphere, capsule,
+  ellipsoid, cylinder, box) are handled. Plane, hfield, mesh, and SDF geoms are left
+  unchanged.
   """
-  asset = env.scene[asset_cfg.name]
-  entity_indices = _get_entity_indices(asset.indexing, asset_cfg, "geom", False)
-
   env_grid, entity_grid = torch.meshgrid(env_ids, entity_indices, indexing="ij")
   size = env.sim.model.geom_size[env_grid, entity_grid]  # (n_envs, n_geoms, 3)
   s0, s1, s2 = size[..., 0], size[..., 1], size[..., 2]
@@ -269,7 +268,7 @@ def geom_size(
   else:
     env_ids = env_ids.to(env.device, dtype=torch.int)
 
-  _randomize_model_field(
+  geom_ids = _randomize_model_field(
     env,
     env_ids,
     "geom_size",
@@ -282,4 +281,43 @@ def geom_size(
     shared_random=shared_random,
     default_axes=[0, 1, 2],
   )
-  _recompute_geom_bounds(env, env_ids, asset_cfg)
+  _recompute_geom_bounds(env, env_ids, geom_ids)
+
+
+@requires_model_fields("geom_matid")
+def geom_matid(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor | None,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  shared_random: bool = False,
+) -> None:
+  """Randomize which baked material each selected geom uses.
+
+  Each geom is assigned a material drawn uniformly from ``asset_cfg.material_names``.
+  Assigning a material to a geom that had none (``matid < 0``) switches its color
+  source from ``geom_rgba`` to the material's ``mat_rgba``/texture.
+
+  Args:
+    env: The environment instance.
+    env_ids: Environment indices to randomize. ``None`` means all.
+    asset_cfg: Entity, geom, and material selection.
+    shared_random: If ``True``, all selected geoms receive the same sampled value per
+      environment.
+  """
+  asset = env.scene[asset_cfg.name]
+  mat_ids = _get_entity_indices(asset.indexing, asset_cfg, "material", False)
+  if mat_ids.numel() == 0:
+    raise ValueError(
+      f"No materials selected for entity '{asset_cfg.name}'. Set "
+      "SceneEntityCfg.material_names to a non-empty selection."
+    )
+
+  _randomize_categorical_field(
+    env,
+    env_ids,
+    "geom_matid",
+    entity_type="geom",
+    pool=mat_ids,
+    asset_cfg=asset_cfg,
+    shared_random=shared_random,
+  )
