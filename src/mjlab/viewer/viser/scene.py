@@ -278,6 +278,7 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
     self._queued_cylinders: list = []
     self._queued_ellipsoids: list = []
     self._queued_boxes: list = []
+    self._queued_rectangles: list = []
 
     # Batched mesh handles for simple primitives.
     def _shaft_mesh() -> trimesh.Trimesh:
@@ -308,6 +309,10 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
       "boxes",
       lambda: trimesh.creation.box(extents=(2.0, 2.0, 2.0)),
     )
+    self._rectangles = _BatchedPrimitive(
+      "rectangles",
+      lambda: trimesh.creation.box(extents=[1.0, 1.0, 0.001]),
+    )
     self._all_primitives = [
       self._arrow_shafts,
       self._arrow_heads,
@@ -315,6 +320,7 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
       self._cylinders,
       self._ellipsoids,
       self._boxes,
+      self._rectangles,
     ]
 
     # Ghost mesh state.
@@ -1049,6 +1055,31 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
     self._queued_cylinders.append((start.copy(), end.copy(), radius, color))
 
   @override
+  def add_rectangle(
+    self,
+    center: np.ndarray | torch.Tensor,
+    width: float,
+    height: float,
+    normal: np.ndarray | torch.Tensor | None = None,
+    color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 0.5),
+    label: str | None = None,
+  ) -> None:
+    if not self.debug_visualization_enabled:
+      return
+    del label
+    if normal is None:
+      normal = _Z_AXIS
+    self._queued_rectangles.append(
+      (
+        np.asarray(_to_numpy(center), dtype=np.float32).copy(),
+        float(width),
+        float(height),
+        np.asarray(_to_numpy(normal), dtype=np.float32).copy(),
+        color,
+      )
+    )
+
+  @override
   def add_ellipsoid(
     self,
     center: np.ndarray | torch.Tensor,
@@ -1098,6 +1129,7 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
     self._queued_cylinders.clear()
     self._queued_ellipsoids.clear()
     self._queued_boxes.clear()
+    self._queued_rectangles.clear()
     self._queued_ghosts.clear()
 
   def clear_debug_all(self) -> None:
@@ -1176,6 +1208,7 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
     self._sync_cylinders()
     self._sync_ellipsoids()
     self._sync_boxes()
+    self._sync_rectangles()
 
   def _sync_spheres(self) -> None:
     if not self._queued_spheres:
@@ -1279,6 +1312,34 @@ class MjlabViserScene(ViserMujocoScene, DebugVisualizer):
       colors[i] = _color_uint8(color)
       opacity = color[3]
     self._boxes.sync(
+      self.server,
+      self.env_idx,
+      positions,
+      wxyzs,
+      scales,
+      colors,
+      opacity,
+    )
+
+  def _sync_rectangles(self) -> None:
+    if not self._queued_rectangles:
+      self._rectangles.remove()
+      return
+    n = len(self._queued_rectangles)
+    positions = np.zeros((n, 3), dtype=np.float32)
+    wxyzs = np.zeros((n, 4), dtype=np.float32)
+    scales = np.zeros((n, 3), dtype=np.float32)
+    colors = np.zeros((n, 3), dtype=np.uint8)
+    opacity = 1.0
+    for i, (center, width, height, normal, color) in enumerate(
+      self._queued_rectangles
+    ):
+      positions[i] = center + self._scene_offset
+      wxyzs[i] = _rotation_quat(_Z_AXIS, normal)
+      scales[i] = np.array([width, height, 1.0], dtype=np.float32)
+      colors[i] = _color_uint8(color)
+      opacity = color[3]
+    self._rectangles.sync(
       self.server,
       self.env_idx,
       positions,
