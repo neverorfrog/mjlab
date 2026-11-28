@@ -20,6 +20,9 @@ Added
   kernels for Blackwell GPUs.
 - Added ``SimulationCfg.graph_conditional`` to toggle MuJoCo Warp's CUDA graph
   conditional nodes, which require CUDA 12.4 or newer.
+- Added ``SimulationCfg.nccdmax`` to set the number of convex collision detection
+  contacts allocated per world separately from ``nconmax``. Contribution by
+  @bd-pmorais.
 - ``RslRlBaseRunnerCfg.logger`` accepts the import path of an
   ``rsl_rl.utils.LogWriter`` subclass, e.g. ``"my_pkg.writers:MyLogWriter"``.
 - Added ``RewardManager.term_rewards`` and ``RewardManager.get_term()`` for the
@@ -34,6 +37,8 @@ Added
 Changed
 ^^^^^^^
 
+- ``demo`` downloads its checkpoint and motion from a GitHub release instead of
+  Google Cloud Storage.
 - Upgraded MuJoCo and MuJoCo Warp to 4.0.1. mjlab now depends on ``mujoco-core``
   instead of ``mujoco``. To upgrade an existing environment, run
   ``uv sync --reinstall-package mujoco-core``: removing ``mujoco`` deletes files that
